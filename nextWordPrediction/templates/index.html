@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Next Word Predictor</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Fira+Mono:wght@400&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: linear-gradient(120deg, #e0eafc 0%, #cfdef3 100%) fixed;
+            font-family: 'Montserrat', Arial, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: #fff;
+            border-radius: 18px;
+            box-shadow: 0 6px 32px 0 rgba(60, 80, 180, 0.11);
+            padding: 2.2rem 2rem 2rem 2rem;
+            width: 100%;
+            max-width: 410px;
+            text-align: center;
+        }
+        .title {
+            font-size: 2rem;
+            color: #2a5298;
+            font-family: 'Montserrat', Arial, sans-serif;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            letter-spacing: 1px;
+        }
+        .subtitle {
+            color: #5d6d7e;
+            font-size: 1.08rem;
+            margin-bottom: 2rem;
+        }
+        form {
+            margin-bottom: 1.3rem;
+        }
+        .input-row {
+            display: flex;
+            gap: 0.7rem;
+            margin-bottom: 1.1rem;
+        }
+        .input-row input {
+            flex: 1;
+            padding: 0.8rem 1rem;
+            border: 1px solid #d3d3e7;
+            border-radius: 10px;
+            font-size: 1.08rem;
+            font-family: 'Fira Mono', monospace;
+            background: #f7faff;
+            color: #223;
+            outline: none;
+            transition: box-shadow 0.2s, border 0.2s;
+        }
+        .input-row input:focus {
+            box-shadow: 0 0 0 2px #2a5298;
+            border-color: #2a5298;
+            background: #fff;
+        }
+        button {
+            background: linear-gradient(90deg, #4f8cff 0%, #72efdd 100%);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 0.8rem 2.2rem;
+            font-size: 1.09rem;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 0.5rem;
+            box-shadow: 0 2px 12px 0 rgba(46, 91, 255, 0.07);
+            transition: background 0.2s, color 0.2s;
+        }
+        button:hover {
+            background: linear-gradient(90deg, #72efdd 0%, #4f8cff 100%);
+            color: #2a5298;
+        }
+        .output {
+            margin-top: 1.7rem;
+            min-height: 2.3rem;
+            font-size: 1.09rem;
+            color: #2a5298;
+            background: #f4f8fb;
+            border-radius: 12px;
+            padding: 1.1rem 1rem;
+            box-shadow: 0 2px 8px rgba(100, 130, 200, 0.07);
+            word-break: break-word;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Fira Mono', monospace;
+        }
+        .loader {
+            border: 4px solid #e0e8ff;
+            border-top: 4px solid #4f8cff;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 12px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        @media (max-width: 600px) {
+            .container { padding: 1.2rem 0.7rem; }
+            .title { font-size: 1.3rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="title">Next Word Predictor</div>
+        <div class="subtitle">Enter a phrase and number of words to predict.</div>
+        <form id="predict-form">
+            <div class="input-row">
+                <input type="text" id="seed_text" name="seed_text" placeholder="Seed phrase..." required autocomplete="off">
+                <input type="number" id="next_words" name="next_words" min="1" max="10" value="1" required placeholder="# words">
+            </div>
+            <button type="submit">Generate</button>
+        </form>
+        <div class="output" id="output"></div>
+    </div>
+    <script>
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    document.getElementById('predict-form').onsubmit = function(e) {
+        e.preventDefault();
+        const seed_text = document.getElementById('seed_text').value;
+        const next_words = document.getElementById('next_words').value;
+        const outputDiv = document.getElementById('output');
+        outputDiv.innerHTML = '<span class="loader"></span>Generating...';
+        const csrftoken = getCookie('csrftoken');
+        fetch('/generate/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': csrftoken
+            },
+            body: `seed_text=${encodeURIComponent(seed_text)}&next_words=${encodeURIComponent(next_words)}`
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Network response was not ok');
+            return response.json();
+        })
+        .then(data => {
+            outputDiv.innerHTML = data.generated || data.error;
+        })
+        .catch(err => {
+            outputDiv.innerHTML = `<span style='color:#e74c3c'>&#9888;</span> Error: ${err}`;
+        });
+    }
+    </script>
+</body>
+</html>
